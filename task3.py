@@ -1,6 +1,6 @@
-import argparse
+import sys
 from pathlib import Path
-from collections import Counter
+
 
 # parsing 1 line from log-file with help .split in dict. Message is obtained as list, and it joined in string 
 # with help map
@@ -31,49 +31,55 @@ def load_logs(file_path: str) -> list:
 
 # filter for logging level
 def filter_logs_by_level(logs: list, level: str) -> list:
-    levels_list = []
-    for log in logs:
-        if log['level'] == level.upper(): # we exclude pair k,v from dict with level == needed level  
-            log.pop('level')
-            levels_list.append(log) # append dict with len(dict) = 3 in list
+    levels_list = [log for log in logs if log['level'] == level.upper()] # add in list dicts with level == needed level 
+    
     return levels_list            
 
-# counting multiplicity of entry for every log with help Counter
-def count_logs_by_level(logs: list) -> dict:
-    count_dict = Counter()
-    for log_dict in logs:
-        count_dict[log_dict['level']] += 1
+# counting multiplicity of entry for every log 
+def count_logs_by_level(logs: list) -> dict:    
+    count_dict = {}
+    levels = {log['level'] for log in logs} # set with values of "level"
+
+    for  i in levels:
+        counted = list(filter(lambda x: x['level'] == i, logs))  # list with dicts, where "level" == value from levels set
+        count_dict[i] = len(counted) # length (counted) = quantity
         
     return count_dict
 
 # building table for printing result dict
 def display_log_counts(counts: dict):
+# sorted list of tuples, where key => tuple[0], value => tuple[1], sort by value, reverse order 
+    sorted_items = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+
     s = "Рівень логування"
     t = " | "
     r = "Кількість"
     print(s,t,r)
     print("_" * (len(s) + len(t) + len(r)))
-    for key, value in counts.items():
-        print("{:<{}}{}{:<}".format(key, len(s) + 1, t, value))
+    for value in sorted_items:
+        print("{:<{}}{}{:<}".format(value[0], len(s) + 1, t, value[1]))
 
 def main():
 
-# with help library argparse find filename as positional argument and logging level as optional argument
-    parser = argparse.ArgumentParser()
-    parser.add_argument("filename", help='Path to analized log file')
-    # one optional argument with 4 choices. "-l" - short version, "--log_level" - long
-    parser.add_argument("-l", "--log_level", help="level of logging you need", choices=['info', 'debug', 'warning', 'error'])
-    args = parser.parse_args()
-
-    logs = load_logs(args.filename)
+# with help library sys find filename as args[1]  argument and logging level as optional argument args[2]
+    try:
+        filename = sys.argv[1]
+        logs = load_logs(filename)
+        count_logs_by_level(logs)
+        display_log_counts(count_logs_by_level(logs))
+        
+    except IndexError:
+        print("Input path and name of log file")
     
-    display_log_counts(count_logs_by_level(logs))
-    # if optional argument is present, we print all information for this logging level 
-    if args.log_level:
-        msg = f"\nДеталі логів для рівня {args.log_level.upper()}:"
-        print(msg)
-        for item in filter_logs_by_level(logs, args.log_level):
-            print(f"{item['date']} {item['time']} - {item['message']}")
+    args = sys.argv[2:] 
+       
+    if args:
+        for arg in args:
+            msg = f"\nДеталі логів для рівня {arg.upper()}:"
+            print(msg)
+            for item in filter_logs_by_level(logs, arg):
+                print(f"{item['date']} {item['time']} - {item['message']}")
+
     
 
 if __name__ == "__main__":
